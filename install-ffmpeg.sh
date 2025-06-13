@@ -1,0 +1,16 @@
+#!/bin/bash
+
+echo "FFmpegのインストール方法:"
+echo ""
+echo "macOS (Homebrew):"
+echo "  brew install ffmpeg"
+echo ""
+echo "Ubuntu/Debian:"
+echo "  sudo apt update"
+echo "  sudo apt install ffmpeg"
+echo ""
+echo "Windows:"
+echo "  1. https://ffmpeg.org/download.html からダウンロード"
+echo "  2. 環境変数PATHに追加"
+echo ""
+echo "インストール後、このアプリケーションを再起動してください。"

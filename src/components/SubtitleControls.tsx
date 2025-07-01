@@ -8,12 +8,29 @@ interface SubtitleControlsProps {
   isProcessing: boolean;
 }
 
+/**
+ * 字幕コントロールコンポーネント
+ * 字幕の言語選択、SRTファイルのダウンロード、字幕の焼き込み機能を提供する
+ * 
+ * @param props - コンポーネントのプロパティ
+ * @param props.transcript - 字幕データの配列（TranscriptLine型）
+ * @param props.onBurnSubtitles - 字幕焼き込み処理を実行するコールバック関数
+ * @param props.isProcessing - 処理中かどうかを示すフラグ
+ * @returns 字幕コントロールのJSX要素
+ */
 export const SubtitleControls: React.FC<SubtitleControlsProps> = ({
   transcript,
   onBurnSubtitles,
   isProcessing,
 }) => {
   const [selectedLanguage, setSelectedLanguage] = useState<string>('japanese');
+  
+  /**
+   * SRTファイルをダウンロードする関数
+   * transcriptデータからSRT形式のファイルを生成し、ブラウザ経由でダウンロードする
+   * 
+   * @returns void
+   */
   const downloadSRT = () => {
     const srtContent = generateSRT(transcript);
     const blob = new Blob([srtContent], { type: 'text/plain' });

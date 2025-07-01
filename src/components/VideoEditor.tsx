@@ -40,6 +40,25 @@ export default function VideoEditor({
     onTranscriptChange(newTranscript);
   };
 
+  const handleBulkReplace = (searchText: string, replaceText: string): number => {
+    let replacedCount = 0;
+    const newTranscript = transcript.map(line => {
+      const regex = new RegExp(searchText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
+      const matches = line.text.match(regex);
+      if (matches) {
+        replacedCount += matches.length;
+        return {
+          ...line,
+          text: line.text.replace(regex, replaceText)
+        };
+      }
+      return line;
+    });
+    
+    onTranscriptChange(newTranscript);
+    return replacedCount;
+  };
+
   const handleSeek = (time: number) => {
     if (videoRef.current) {
       videoRef.current.currentTime = time;
@@ -118,6 +137,7 @@ export default function VideoEditor({
             onLineClick={handleLineClick}
             onLineEdit={handleLineEdit}
             onLineDelete={handleLineDelete}
+            onBulkReplace={handleBulkReplace}
           />
         </div>
       </div>

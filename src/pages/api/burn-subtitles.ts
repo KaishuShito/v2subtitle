@@ -18,6 +18,76 @@ export const config = {
   },
 }
 
+function createASSFile(transcript: TranscriptLine[], outputPath: string, language: string, fontSize: number): void {
+  let processedTranscript = transcript;
+  
+  if (language === 'english') {
+    processedTranscript = [{
+      start: 0,
+      end: 5,
+      text: 'English subtitles not available - original audio only'
+    }];
+  } else if (language === 'japanese') {
+    processedTranscript = transcript.map(line => {
+      let cleanedText = line.text;
+      
+      // 英語と日本語が混在する場合の処理
+      const japanesePattern = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/;
+      const englishBeforeJapanese = /^[A-Za-z0-9\s,.!?"'-]+(?=[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF])/g;
+      const quotedEnglish = /"[^"\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]+"/g;
+      
+      cleanedText = cleanedText.replace(englishBeforeJapanese, '');
+      cleanedText = cleanedText.replace(quotedEnglish, '');
+      
+      if (!japanesePattern.test(cleanedText)) {
+        cleanedText = '';
+      }
+      
+      return {
+        ...line,
+        text: cleanedText.trim()
+      };
+    }).filter(line => line.text.length > 0);
+  }
+
+  // ASS形式のヘッダーを作成（背景ボックス付き）
+  const marginV = Math.round((1080 * fontSize) / 19.44 * 0.05);
+  const assHeader = [
+    '[Script Info]',
+    'Title: Subtitle',
+    'ScriptType: v4.00+',
+    '',
+    '[V4+ Styles]',
+    'Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding',
+    // BorderStyle=3、Outline=2で黒い輪郭を半透明背景として使用
+    `Style: Default,Arial,${fontSize},&H00FFFFFF,&H000000FF,&H99000000,&H99000000,0,0,0,0,100,100,0,0,3,2,0,2,10,10,${marginV},1`,
+    '',
+    '[Events]',
+    'Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text',
+    ''
+  ].join('\n');
+
+  // 各字幕行をASS形式に変換（バックスラッシュエスケープを修正）
+  const assEvents = processedTranscript.map(line => {
+    const startTime = formatASSTime(line.start);
+    const endTime = formatASSTime(line.end);
+    // シンプルなテキストで、スタイルの背景設定を使用
+    return `Dialogue: 0,${startTime},${endTime},Default,,0,0,0,,${line.text}`;
+  }).join('\n');
+
+  const assContent = assHeader + assEvents;
+  fs.writeFileSync(outputPath, assContent, 'utf8');
+}
+
+// ASS時間形式に変換 (H:MM:SS.CC)
+function formatASSTime(seconds: number): string {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = Math.floor(seconds % 60);
+  const centiseconds = Math.floor((seconds % 1) * 100);
+  return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${centiseconds.toString().padStart(2, '0')}`;
+}
+
 function createSRTFile(transcript: TranscriptLine[], outputPath: string, language: string): void {
   let processedTranscript = transcript;
   
@@ -113,11 +183,6 @@ export default async function handler(
     const outputPath = path.join(tempDir, `output-${Date.now()}.mp4`)
     console.log('Temporary file paths:', { srtPath, outputPath });
 
-    // Create SRT file from transcript
-    console.log('Creating SRT file with language option:', language);
-    createSRTFile(transcript, srtPath, language)
-    console.log('SRT file created successfully');
-
     // Get video dimensions for responsive font sizing
     console.log('Probing video dimensions...');
     const probeCommand = `ffprobe -v quiet -print_format json -show_streams "${videoFile.filepath}"`
@@ -127,13 +192,23 @@ export default async function handler(
     const height = videoStream?.height || 1080
     console.log('Video dimensions:', { width: videoStream?.width, height });
     
-    // Calculate font size - reduced by 15% from original 3%
-    // Use 2.55% of video height (3% * 0.85) for smaller text
-    const fontSize = Math.max(14, Math.round(height * 0.0255))
+    // Calculate font size to match editing screen preview
+    // Use 1.8% of video height for consistency with text-xl (approximately 18-20px)
+    const fontSize = Math.max(16, Math.round(height * 0.018))
     console.log('Calculated font size:', fontSize);
     
-    // FFmpeg command to burn subtitles with Japanese font settings
-    const ffmpegCommand = `ffmpeg -i "${videoFile.filepath}" -vf "subtitles='${srtPath}':force_style='FontName=Hiragino Kaku Gothic ProN,Fontsize=${fontSize},PrimaryColour=&HFFFFFF&,OutlineColour=&H000000&,Outline=2,BackColour=&H000000&,Shadow=1,Alignment=2,MarginV=${Math.round(height * 0.08)},Spacing=0'" -c:a copy "${outputPath}"`
+    // Calculate margin for positioning above playback controls (5% from bottom)
+    const marginV = Math.round(height * 0.05);
+    console.log('Bottom margin:', marginV);
+    
+    // Create SRT file from transcript
+    console.log('Creating SRT file with language option:', language);
+    createSRTFile(transcript, srtPath, language)
+    console.log('SRT file created successfully');
+    
+    // FFmpeg command to burn subtitles with semi-transparent black background
+    // BorderStyle=3 creates box around text, Outline creates thickness
+    const ffmpegCommand = `ffmpeg -i "${videoFile.filepath}" -vf "subtitles='${srtPath}':force_style='FontName=Arial,Fontsize=${fontSize},PrimaryColour=&HFFFFFF&,OutlineColour=&H66000000&,Outline=8,Shadow=0,BackColour=&H66000000&,BorderStyle=3,Alignment=2,MarginV=${marginV}'" -c:a copy "${outputPath}"`
     console.log('FFmpeg command:', ffmpegCommand);
 
     // Execute FFmpeg

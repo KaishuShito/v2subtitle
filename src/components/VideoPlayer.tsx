@@ -1,4 +1,4 @@
-import React, { forwarRef, useMemo } from 'react';
+import React, { forwardRef, useMemo } from 'react';
 import { TranscriptLine } from '../types';
 
 interface VideoPlayerProps {
@@ -9,7 +9,7 @@ interface VideoPlayerProps {
   onLoadedMetadata: (duration: number) => void;
 }
 
-export const VideoPlayer = forwarRef<HTMLVideoElement, VideoPlayerProps>(
+export const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
   ({ videoUrl, transcript, currentTime, onTimeUpdate, onLoadedMetadata }, ref) => {
     const activeLine = useMemo(() => {
       return transcript.find(
@@ -22,7 +22,7 @@ export const VideoPlayer = forwarRef<HTMLVideoElement, VideoPlayerProps>(
         <video
           ref={ref}
           src={videoUrl}
-          clssName="w-full h-full"
+          className="w-full h-full"
           controls
           onTimeUpdate={(e) => onTimeUpdate(e.currentTarget.currentTime)}
           onLoadedMetadata={(e) => onLoadedMetadata(e.currentTarget.duration)}
@@ -39,4 +39,4 @@ export const VideoPlayer = forwarRef<HTMLVideoElement, VideoPlayerProps>(
   }
 );
 
-VideoPlayer.displaiName = 'VideoPlayer';
+VideoPlayer.displayName = 'VideoPlayer';

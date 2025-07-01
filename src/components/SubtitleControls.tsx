@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, ChangeEvent } from 'react';
 import { TranscriptLine } from '../types';
 import { generateSRT } from '../utils/transcript';
 
@@ -42,6 +42,26 @@ export const SubtitleControls: React.FC<SubtitleControlsProps> = ({
     URL.revokeObjectURL(url);
   };
 
+  /**
+   * トランスクリプト全体をクリップボードにコピーする関数
+   *
+   * @returns void
+   */
+  const copyTranscript = async () => {
+    if (!navigator.clipboard) {
+      console.error('Clipboard API がサポートされていません');
+      return;
+    }
+    try {
+      const textContent = transcript.map((line: TranscriptLine) => line.text).join('\n');
+      await navigator.clipboard.writeText(textContent);
+      // ユーザーにフィードバックを提供（必要に応じてトーストなどに置き換え）
+      alert('トランスクリプトをコピーしました！');
+    } catch (error) {
+      console.error('クリップボードへのコピーに失敗しました', error);
+    }
+  };
+
   return (
     <div className="space-y-4 mt-4">
       <div className="flex items-center gap-4">
@@ -50,7 +70,7 @@ export const SubtitleControls: React.FC<SubtitleControlsProps> = ({
         </label>
         <select
           value={selectedLanguage}
-          onChange={(e) => setSelectedLanguage(e.target.value)}
+          onChange={(e: ChangeEvent<HTMLSelectElement>) => setSelectedLanguage(e.target.value)}
           className="px-3 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
           <option value="japanese">日本語のみ</option>
@@ -65,6 +85,16 @@ export const SubtitleControls: React.FC<SubtitleControlsProps> = ({
           className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition-colors"
         >
           SRTファイルをダウンロード
+        </button>
+
+        <button
+          onClick={copyTranscript}
+          disabled={transcript.length === 0}
+          className={`bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600 transition-colors ${
+            transcript.length === 0 ? 'opacity-50 cursor-not-allowed' : ''
+          }`}
+        >
+          テキストをコピー
         </button>
         
         <button
